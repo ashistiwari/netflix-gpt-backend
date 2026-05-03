@@ -1,0 +1,4 @@
+package com.netflix_gpt.config;
+
+public class CorsConfig {
+}
