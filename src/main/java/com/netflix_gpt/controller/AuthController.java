@@ -1,9 +1,14 @@
 package com.netflix_gpt.controller;
 
+import com.netflix_gpt.dto.AuthRequest;
+import com.netflix_gpt.dto.AuthResponse;
 import com.netflix_gpt.entity.User;
 import com.netflix_gpt.repository.UserRepository;
 import com.netflix_gpt.security.JwtUtil;
+import org.apache.coyote.Response;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,23 +29,29 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     @PostMapping("/signup")
-    public String signup(@RequestBody User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        userRepo.save(user);
-        return "User registered";
+    public ResponseEntity<?> signup(@RequestBody AuthRequest request) {
+        if(userRepo.findByEmailId(request.getEmailId()).isPresent()){
+            return ResponseEntity.badRequest().body("User Already Exist");
+        }
+        User user=new User();
+        user.setEmail(request.getEmailId());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        userRepo.save(request);
+        return ResponseEntity.ok("User registered successfully");
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody User user) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest authRequest) {
 
-        User existing = userRepo.findByEmail(user.getEmail())
+        AuthRequest existing = userRepo.findByEmailId(authRequest.getEmailId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!passwordEncoder.matches(user.getPassword(), existing.getPassword())) {
+        if (!passwordEncoder.matches(authRequest.getPassword(), existing.getPassword())) {
             throw new RuntimeException("Invalid password");
         }
+        String token=jwtUtil.generateAccessToken(existing.getEmailId(),"15");
 
-        return jwtUtil.generateAccessToken(existing.getEmail(), String.valueOf(15));
+        return ResponseEntity.ok(new AuthResponse(token));
     }
 
     @PostMapping("/refresh")

@@ -14,6 +14,7 @@ public class JwtUtil {
     public String generateAccessToken(String email,String expirtyTime) {
         return Jwts.builder()
                 .setSubject(email)
+                .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15)) // 15 min
                 .signWith(SignatureAlgorithm.HS256, SECRET)
                 .compact();
