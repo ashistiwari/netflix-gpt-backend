@@ -2,6 +2,7 @@ package com.netflix_gpt.config;
 
 import com.netflix_gpt.security.CustomAuthenticationProvider;
 import com.netflix_gpt.security.JwtFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,6 +28,7 @@ public class SecurityConfig {
         System.out.println("checking commit issue");
 
         http
+                .cors(cors -> {})   // ✅ new style (instead of .cors().and())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
@@ -37,10 +39,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+
 
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
@@ -48,4 +47,5 @@ public class SecurityConfig {
                 .authenticationProvider(customAuthenticationProvider)
                 .build();
     }
+
 }
