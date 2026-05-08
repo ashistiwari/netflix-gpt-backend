@@ -27,26 +27,43 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String header = req.getHeader("Authorization");
 
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-
-            String email = jwtUtil.extractEmail(token);
-
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(
-                            email,
-                            null,
-                            List.of()
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(auth);
+        if (req.getMethod().equals("OPTIONS")) {
+            chain.doFilter(req, res);
+            return;
         }
 
+        if (header != null && header.startsWith("Bearer ")) {
+
+            String token = header.substring(7);
+
+            try {
+
+                String email = jwtUtil.extractEmail(token);
+
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken(
+                                email,
+                                null,
+                                List.of()
+                        );
+
+                SecurityContextHolder.getContext().setAuthentication(auth);
+
+            } catch (Exception e) {
+
+                res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+        }
+
+        // ✅ MUST ALWAYS BE CALLED
         chain.doFilter(req, res);
     }
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.startsWith("/auth/");
+
+        return path.equals("/auth/login") ||
+                path.equals("/auth/signup");
     }
 }

@@ -5,11 +5,21 @@ import com.netflix_gpt.dto.LoginRequest;
 import com.netflix_gpt.dto.SignUpRequest;
 import com.netflix_gpt.entity.User;
 import com.netflix_gpt.repository.UserRepository;
+import com.netflix_gpt.security.CustomUserDetails;
 import com.netflix_gpt.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -24,6 +34,8 @@ public class AuthController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody SignUpRequest request) {
@@ -40,17 +52,30 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest authRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
-        User existing = userRepo.findByEmail(authRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        try {
 
-        if (!passwordEncoder.matches(authRequest.getPassword(), existing.getPassword())) {
-            throw new RuntimeException("Invalid password");
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
+
+            String token = jwtUtil.generateAccessToken(request.getEmail());
+
+            Map<String, String> response = new HashMap<>();
+            response.put("token", token);
+
+            return ResponseEntity.ok(response);
+
+        } catch (AuthenticationException e) {
+
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid email or password");
         }
-        String token=jwtUtil.generateAccessToken(existing.getEmail());
-
-        return ResponseEntity.ok(new AuthResponse(token));
     }
 
     @PostMapping("/refresh")
@@ -59,6 +84,11 @@ public class AuthController {
         String email = jwtUtil.extractEmail(refreshToken);
 
         return jwtUtil.generateAccessToken(email);
+    }
+    @GetMapping("/auth/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication){
+        UserDetails user=(UserDetails) authentication.getPrincipal();
+        return ResponseEntity.ok(user);
     }
 }
 
